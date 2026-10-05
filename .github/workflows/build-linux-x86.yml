@@ -101,31 +101,13 @@ jobs:
               s = s.replace(marker, marker + "\n" + zp, 1)
           nav.write_text(s)
 
-          # Prefer ladder routes in Zombie Plague. Stock YaPB penalizes ladder
-          # nodes by 50%, which makes bots avoid vertical escape routes even
-          # when a ladder is the sensible way to reach a shelter.
+          # Prefer ladders in Zombie Plague by removing the stock 50% ladder penalty.
           planner = Path("yapb/src/planner.cpp")
           s = planner.read_text()
-          old = """  // we don't like ladder or crouch point
-          if (has_flag (graph[current_index].flags, NodeFlag::Crouch | NodeFlag::Ladder)) {
-            return static_cast<float> (edge_distance) * 1.5f;
-          }
-          return static_cast<float> (edge_distance);"""
-          new = """  // Zombie Plague: ladders are valid escape routes and should not be penalized.
-          // Keep the normal crouch penalty, but slightly prefer ladder links so
-          // humans can climb toward elevated shelter/camp goals.
-          if (has_flag (graph[current_index].flags, NodeFlag::Crouch)) {
-            return static_cast<float> (edge_distance) * 1.5f;
-          }
-          if (game.Is (GameFlags::ZombieMod) && has_flag (graph[current_index].flags, NodeFlag::Ladder)) {
-            return static_cast<float> (edge_distance) * 0.75f;
-          }
-          if (has_flag (graph[current_index].flags, NodeFlag::Ladder)) {
-            return static_cast<float> (edge_distance) * 1.5f;
-          }
-          return static_cast<float> (edge_distance);"""
+          old = "if (has_flag (graph[current_index].flags, NodeFlag::Crouch | NodeFlag::Ladder)) {"
+          new = "if (has_flag (graph[current_index].flags, NodeFlag::Crouch)) {"
           if old not in s:
-              raise SystemExit("Planner ladder block not found")
+              raise SystemExit("Planner crouch/ladder condition not found")
           s = s.replace(old, new, 1)
           planner.write_text(s)
 
