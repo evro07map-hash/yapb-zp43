@@ -176,8 +176,7 @@ jobs:
           # Humans: keep normal gun combat so they can fire while moving toward shelter/cover.
           combat = Path("yapb/src/combat.cpp")
           s = combat.read_text()
-          marker = """  // use actual distance to enemy, not to aim point (which has error/compensation offset)
-          const auto distance_sq = pev->origin.distance_sq (enemy_->v.origin);"""
+          marker = "  const auto distance_sq = pev->origin.distance_sq (enemy_->v.origin);"
           inject = """  // ZP creature role: focus entirely on catching the human.
           // Do not orbit/strafe around the target. Run directly toward it.
           if (game.Is (GameFlags::ZombieMod) && is_creature_) {
@@ -191,11 +190,12 @@ jobs:
             move_to_goal_ = true;
           }
 
-          // use actual distance to enemy, not to aim point (which has error/compensation offset)
           const auto distance_sq = pev->origin.distance_sq (enemy_->v.origin);"""
-          if marker not in s:
-              raise SystemExit("AttackMovement distance marker not found")
-          s = s.replace(marker, inject, 1)
+          attack_pos = s.find("void Bot::AttackMovement ()")
+          marker_pos = s.find(marker, attack_pos)
+          if attack_pos < 0 or marker_pos < 0:
+              raise SystemExit("AttackMovement distance statement not found")
+          s = s[:marker_pos] + inject + s[marker_pos + len(marker):]
 
           # The stock creature branch forces combat strafing at close range.
           old = """  if ((UsesKnife () && is_enemy_cone) || is_creature_) {
