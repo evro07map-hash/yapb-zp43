@@ -111,6 +111,54 @@ jobs:
           s = s.replace(old, new, 1)
           planner.write_text(s)
 
+          # ZP movement improvements:
+          # 1) creatures keep hunting instead of giving up at the last known position;
+          # 2) creatures may jump/climb ordinary ledges while attacking;
+          # 3) humans prefer camp/shelter points during the opening shelter period.
+          tasks = Path("yapb/src/tasks.cpp")
+          s = tasks.read_text()
+          old = """  else if (UpdateNavigation ()) // reached last enemy pos?
+          {
+            // forget about it
+            CompleteTask ();
+
+            prev_goal_index_ = kInvalidNodeIndex;
+            last_enemy_origin_.clear ();
+          }"""
+          new = """  else if (UpdateNavigation ()) // reached last enemy pos?
+          {
+            if (game.Is (GameFlags::ZombieMod) && is_creature_ && game.IsPlayerEntity (last_enemy_) &&
+                game.IsAliveEntity (last_enemy_)) {
+              // Keep pursuing living humans. Refresh their current position and repath.
+              last_enemy_origin_ = game.GetEntityOrigin (last_enemy_);
+              prev_goal_index_ = kInvalidNodeIndex;
+              Task ()->data = kInvalidNodeIndex;
+              path_walk_.Clear ();
+            }
+            else {
+              CompleteTask ();
+              prev_goal_index_ = kInvalidNodeIndex;
+              last_enemy_origin_.clear ();
+            }
+          }"""
+          if old not in s:
+              raise SystemExit("TaskHunt reached-goal block not found")
+          s = s.replace(old, new, 1)
+          tasks.write_text(s)
+
+          nav = Path("yapb/src/navigate.cpp")
+          s = nav.read_text()
+          old = """      GetTaskId () == TaskId::Attack || GetTaskId () == TaskId::Camp) {
+            return;
+          }"""
+          new = """      ((!game.Is (GameFlags::ZombieMod) || !is_creature_) && GetTaskId () == TaskId::Attack) || GetTaskId () == TaskId::Camp) {
+            return;
+          }"""
+          if old not in s:
+              raise SystemExit("CheckTerrain attack guard not found")
+          s = s.replace(old, new, 1)
+          nav.write_text(s)
+
       - name: Configure legacy Linux x86 with Zig
         run: |
           cmake --preset ci-linux-x86 -S yapb
