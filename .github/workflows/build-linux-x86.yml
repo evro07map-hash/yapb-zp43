@@ -1,0 +1,126 @@
+name: Build YaPB ZP43 Linux x86
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - ".github/workflows/build-linux-x86.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Install 32-bit build tools
+        run: |
+          sudo dpkg --add-architecture i386
+          sudo apt-get update
+          sudo apt-get install -y git cmake ninja-build python3 g++-multilib gcc-multilib libc6-dev-i386
+
+      - name: Checkout YaPB dev with submodules
+        run: |
+          git clone --depth 1 --branch dev --recurse-submodules https://github.com/yapb/yapb.git yapb
+          cd yapb
+          git submodule update --init --recursive
+
+      - name: Apply Zombie Plague 4.3 changes
+        shell: python
+        run: |
+          from pathlib import Path
+
+          cvars = Path("yapb/inc/cvars.h")
+          s = cvars.read_text()
+          marker = 'inline ConVar cv_ignore_objectives ("ignore_objectives", "0", "Allows or disallows bots to do map objectives, i.e. plant/defuse bombs, and save hostages.");'
+          zp = """inline ConVar cv_zp_shelter_time ("zp_shelter_time", "18", "Zombie Plague: seconds after round start that human bots prioritize camp/shelter nodes instead of roaming.", true, 0.0f, 90.0f);
+          inline ConVar cv_zp_population_schedule ("zp_population_schedule", "1", "Zombie Plague: enables time-of-day bot population management.");
+          inline ConVar cv_zp_day_start ("zp_day_start", "8", "Zombie Plague: hour when daytime bot quota starts.", true, 0.0f, 23.0f);
+          inline ConVar cv_zp_evening_start ("zp_evening_start", "18", "Zombie Plague: hour when evening bot quota starts.", true, 0.0f, 23.0f);
+          inline ConVar cv_zp_night_start ("zp_night_start", "0", "Zombie Plague: hour when night bot quota starts.", true, 0.0f, 23.0f);
+          inline ConVar cv_zp_day_bots ("zp_day_bots", "4", "Zombie Plague: target bot count during daytime.", true, 0.0f, static_cast<float> (kGameMaxPlayers));
+          inline ConVar cv_zp_evening_bots ("zp_evening_bots", "8", "Zombie Plague: target bot count during evening.", true, 0.0f, static_cast<float> (kGameMaxPlayers));
+          inline ConVar cv_zp_night_bots ("zp_night_bots", "4", "Zombie Plague: target bot count during night.", true, 0.0f, static_cast<float> (kGameMaxPlayers));"""
+          if "cv_zp_shelter_time" not in s:
+              s = s.replace(marker, marker + "\n" + zp)
+          cvars.write_text(s)
+
+          manager = Path("yapb/src/manager.cpp")
+          s = manager.read_text()
+          marker = "  int desired_bot_count = cv_quota.As<int> ();"
+          zp = r'''
+          
+            // Zombie Plague population schedule. Autovacate below still makes room for real players.
+            if (game.Is (GameFlags::ZombieMod) && cv_zp_population_schedule) {
+              time_t ticks = time (&ticks);
+              tm local {};
+              ystl::plat.loctime (&local, &ticks);
+          
+              const int hour = local.tm_hour;
+              const int day_start = cv_zp_day_start.As<int> ();
+              const int evening_start = cv_zp_evening_start.As<int> ();
+              const int night_start = cv_zp_night_start.As<int> ();
+          
+              if (day_start <= evening_start) {
+                if (hour >= day_start && hour < evening_start) {
+                  desired_bot_count = cv_zp_day_bots.As<int> ();
+                }
+                else if (hour >= evening_start) {
+                  desired_bot_count = cv_zp_evening_bots.As<int> ();
+                }
+                else {
+                  desired_bot_count = cv_zp_night_bots.As<int> ();
+                }
+              }
+              else {
+                desired_bot_count = (hour >= day_start || hour < evening_start)
+                  ? cv_zp_day_bots.As<int> () : cv_zp_evening_bots.As<int> ();
+              }
+          
+              (void) night_start;
+            }'''
+          if "Zombie Plague population schedule" not in s:
+              s = s.replace(marker, marker + zp, 1)
+          manager.write_text(s)
+
+          nav = Path("yapb/src/navigate.cpp")
+          s = nav.read_text()
+          marker = "int Bot::FindBestGoal () {"
+          zp = r'''
+            // ZP humans first look for analyzer-marked camp/shelter nodes before infection settles.
+            if (game.Is (GameFlags::ZombieMod) && !is_creature_ &&
+                game_state.IsEarlyRound (cv_zp_shelter_time.As<float> ()) &&
+                !graph.GetPoints (PointType::Camp).empty ()) {
+              return FindRandomNode (PointType::Camp);
+            }
+          '''
+          if "ZP humans first look" not in s:
+              s = s.replace(marker, marker + "\n" + zp, 1)
+          nav.write_text(s)
+
+      - name: Configure Linux x86
+        run: |
+          cmake -S yapb -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DYAPB_64BIT=OFF \
+            -DYAPB_NATIVE=OFF \
+            -DYAPB_WITH_AMXX=ON
+
+      - name: Build
+        run: cmake --build build --parallel 2
+
+      - name: Verify 32-bit binaries
+        run: |
+          find build -type f -name "*.so" -print -exec file {} \;
+          file build/yapb.so | grep -E "ELF 32-bit.*Intel 80386"
+
+      - name: Collect binaries
+        run: |
+          mkdir -p artifact
+          find build -type f -name "*.so" -exec cp -v {} artifact/ \;
+          cp yapb/LICENSE artifact/ || true
+
+      - name: Upload Linux x86 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: YaPB-ZP43-Linux-x86
+          path: artifact/
+          if-no-files-found: error
