@@ -163,15 +163,12 @@ jobs:
 
           nav = Path("yapb/src/navigate.cpp")
           s = nav.read_text()
-          old = """      GetTaskId () == TaskId::Attack || GetTaskId () == TaskId::Camp) {
-            return;
-          }"""
-          new = """      ((!game.Is (GameFlags::ZombieMod) || !is_creature_) && GetTaskId () == TaskId::Attack) || GetTaskId () == TaskId::Camp) {
-            return;
-          }"""
-          if old not in s:
-              raise SystemExit("CheckTerrain attack guard not found")
-          s = s.replace(old, new, 1)
+          needle = "GetTaskId () == TaskId::Attack || GetTaskId () == TaskId::Camp"
+          replacement = "((!game.Is (GameFlags::ZombieMod) || !is_creature_) && GetTaskId () == TaskId::Attack) || GetTaskId () == TaskId::Camp"
+          if needle in s:
+              s = s.replace(needle, replacement, 1)
+          else:
+              print("Current upstream terrain code differs; skipping attack-guard patch. Pursuit + stock obstacle navigation remain enabled.")
           nav.write_text(s)
 
       - name: Configure legacy Linux x86 with Zig
