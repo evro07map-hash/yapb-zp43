@@ -225,10 +225,7 @@ jobs:
           # zombies below elevated humans.
           analyze = Path("yapb/src/analyze.cpp")
           s = analyze.read_text()
-          marker = """      { range,  0.0f,   128.0f },
-      { -range, 0.0f,   128.0f },
-      { 0.0f,   range,  128.0f },
-      { 0.0f,   -range, 128.0f },"""
+          marker = "      { range,  0.0f,   128.0f },"
           replacement = """      { range,  0.0f,   48.0f },
       { -range, 0.0f,   48.0f },
       { 0.0f,   range,  48.0f },
@@ -241,10 +238,7 @@ jobs:
       { -range, 0.0f,   96.0f },
       { 0.0f,   range,  96.0f },
       { 0.0f,   -range, 96.0f },
-      { range,  0.0f,   128.0f },
-      { -range, 0.0f,   128.0f },
-      { 0.0f,   range,  128.0f },
-      { 0.0f,   -range, 128.0f },"""
+      { range,  0.0f,   128.0f },"""
           if marker not in s:
               raise SystemExit("Analyzer vertical direction block not found")
           s = s.replace(marker, replacement, 1)
