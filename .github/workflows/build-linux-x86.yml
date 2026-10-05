@@ -121,11 +121,48 @@ jobs:
             exit 1
           fi
 
-      - name: Collect binaries
+      - name: Collect binaries and YaPB 4.8 ZP43 configs
         run: |
-          mkdir -p artifact
-          find yapb/build -type f -name "*.so" -exec cp -v {} artifact/ \;
+          mkdir -p artifact/bin artifact/conf
+          YAPB_SO="$(find yapb/build -type f -name 'yapb.so' | head -n1)"
+          cp -v "$YAPB_SO" artifact/bin/yapb.so
+          cp -v yapb/cfg/addons/yapb/conf/*.cfg artifact/conf/
           cp yapb/LICENSE artifact/ || true
+
+          cat >> artifact/conf/yapb.cfg <<'EOF'
+
+          // ============================================================
+          // Zombie Plague 4.3 profile - custom YaPB build
+          // ============================================================
+          yb_ignore_objectives "1"
+          yb_botbuy "0"
+          yb_camping_allowed "1"
+          yb_ignore_enemies_after_spawn_time "0"
+
+          // Custom cvars compiled into this build.
+          yb_zp_shelter_time "18"
+          yb_zp_population_schedule "1"
+          yb_zp_day_start "8"
+          yb_zp_evening_start "18"
+          yb_zp_night_start "0"
+          yb_zp_day_bots "4"
+          yb_zp_evening_bots "8"
+          yb_zp_night_bots "4"
+          EOF
+
+          cat > artifact/INSTALL_BG.txt <<'EOF'
+          YaPB 4.8.x + Zombie Plague 4.3
+          
+          1. Спри сървъра.
+          2. Backup: cstrike/addons/yapb/bin/yapb.so и cstrike/addons/yapb/conf/
+          3. Качи bin/yapb.so в cstrike/addons/yapb/bin/yapb.so
+          4. Качи всички файлове от conf/ в cstrike/addons/yapb/conf/ и ги замени.
+          5. Не трий addons/yapb/data/graph, learned и train.
+          6. Стартирай сървъра и изпълни meta list.
+          
+          Конфигурациите са актуалният формат YaPB 4.8 и премахват старите
+          4.3 config warnings и obsolete команди.
+          EOF
 
       - name: Upload Linux x86 artifact
         uses: actions/upload-artifact@v4
