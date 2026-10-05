@@ -125,6 +125,15 @@ jobs:
             prev_goal_index_ = kInvalidNodeIndex;
             last_enemy_origin_.clear ();
           }"""
+          if old not in s:
+              old = """  else if (UpdateNavigation ()) // reached last enemy pos?
+          {
+            // forget about it
+            CompleteTask ();
+
+            prev_goal_index_ = kInvalidNodeIndex;
+            last_enemy_origin_.clear ();
+          }"""
           new = """  else if (UpdateNavigation ()) // reached last enemy pos?
           {
             if (game.Is (GameFlags::ZombieMod) && is_creature_ && game.IsPlayerEntity (last_enemy_) &&
@@ -141,9 +150,15 @@ jobs:
               last_enemy_origin_.clear ();
             }
           }"""
-          if old not in s:
-              raise SystemExit("TaskHunt reached-goal block not found")
-          s = s.replace(old, new, 1)
+          if old in s:
+              s = s.replace(old, new, 1)
+          else:
+              # Match current upstream formatting without depending on comments/whitespace.
+              start = s.find("  else if (UpdateNavigation ()) // reached last enemy pos?")
+              stop = s.find("\n\n  // do we need to calculate a new path?", start)
+              if start < 0 or stop < 0:
+                  raise SystemExit("TaskHunt navigation section not found")
+              s = s[:start] + new + s[stop:]
           tasks.write_text(s)
 
           nav = Path("yapb/src/navigate.cpp")
