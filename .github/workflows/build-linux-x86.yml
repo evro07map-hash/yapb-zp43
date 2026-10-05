@@ -106,7 +106,7 @@ jobs:
           cmake --preset ci-linux-x86 -S yapb
 
       - name: Build
-        run: cmake --build --preset ci-linux-x86 --parallel 2
+        run: cmake --build yapb/build/ci-linux-x86 --parallel 2
 
       - name: Verify 32-bit binaries
         run: |
