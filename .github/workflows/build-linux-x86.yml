@@ -108,7 +108,7 @@ jobs:
       - name: Build
         run: cmake --build --preset ci-linux-x86 --parallel 2
 
-       - name: Verify 32-bit binaries
+      - name: Verify 32-bit binaries
         run: |
           find yapb/build -type f -name "*.so" -print -exec file {} \;
           YAPB_SO="$(find yapb/build -type f -name 'yapb.so' | head -n1)"
