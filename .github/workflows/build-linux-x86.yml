@@ -9,13 +9,18 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     steps:
-      - name: Install 32-bit build tools
+      - name: Install build tools
         run: |
-          sudo dpkg --add-architecture i386
           sudo apt-get update
-          sudo apt-get install -y git cmake ninja-build python3 g++-multilib gcc-multilib libc6-dev-i386
+          sudo apt-get install -y git cmake ninja-build python3 curl xz-utils file binutils
+
+      - name: Install Zig 0.13
+        run: |
+          curl -L https://ziglang.org/download/0.13.0/zig-linux-x86_64-0.13.0.tar.xz -o /tmp/zig.tar.xz
+          tar -xf /tmp/zig.tar.xz -C /tmp
+          echo "/tmp/zig-linux-x86_64-0.13.0" >> "$GITHUB_PATH"
 
       - name: Checkout YaPB dev with submodules
         run: |
@@ -96,31 +101,35 @@ jobs:
               s = s.replace(marker, marker + "\n" + zp, 1)
           nav.write_text(s)
 
-      - name: Configure Linux x86
+      - name: Configure legacy Linux x86 with Zig
         run: |
-          cmake -S yapb -B build -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DYAPB_64BIT=OFF \
-            -DYAPB_NATIVE=OFF \
-            -DYAPB_WITH_AMXX=ON
+          cmake --preset ci-linux-x86 -S yapb
 
       - name: Build
-        run: cmake --build build --parallel 2
+        run: cmake --build --preset ci-linux-x86 --parallel 2
 
-      - name: Verify 32-bit binaries
+       - name: Verify 32-bit binaries
         run: |
-          find build -type f -name "*.so" -print -exec file {} \;
-          file build/yapb.so | grep -E "ELF 32-bit.*Intel 80386"
+          find yapb/build -type f -name "*.so" -print -exec file {} \;
+          YAPB_SO="$(find yapb/build -type f -name 'yapb.so' | head -n1)"
+          test -n "$YAPB_SO"
+          file "$YAPB_SO" | grep -E "ELF 32-bit.*Intel 80386"
+          echo "Required GLIBC versions:"
+          readelf --version-info "$YAPB_SO" | grep -o 'GLIBC_[0-9.]*' | sort -Vu || true
+          if readelf --version-info "$YAPB_SO" | grep -Eq 'GLIBC_2\.(3[4-9]|[4-9][0-9])'; then
+            echo "ERROR: binary requires GLIBC 2.34+"
+            exit 1
+          fi
 
       - name: Collect binaries
         run: |
           mkdir -p artifact
-          find build -type f -name "*.so" -exec cp -v {} artifact/ \;
+          find yapb/build -type f -name "*.so" -exec cp -v {} artifact/ \;
           cp yapb/LICENSE artifact/ || true
 
       - name: Upload Linux x86 artifact
         uses: actions/upload-artifact@v4
         with:
-          name: YaPB-ZP43-Linux-x86
+          name: YaPB-ZP43-Linux-x86-Legacy
           path: artifact/
           if-no-files-found: error
