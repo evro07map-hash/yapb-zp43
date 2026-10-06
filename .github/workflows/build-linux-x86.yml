@@ -265,7 +265,7 @@ jobs:
               "      ++added;",
               "    }",
               "  }",
-              "  ctrl.Debug (\\"[ZP] vertical jump repair added %d validated links.\\", added);",
+              '  ctrl.Debug ("[ZP] vertical jump repair added %d validated links.", added);',
               "}",
               "",
           ]
