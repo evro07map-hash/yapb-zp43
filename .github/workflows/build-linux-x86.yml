@@ -219,6 +219,16 @@ jobs:
               print("Close-range creature strafe block differs; direct-charge block still applied.")
           combat.write_text(s)
 
+          # ZP creatures never use flashlight. If one is already on, turn it off.
+          vision = Path("yapb/src/vision.cpp")
+          vs = vision.read_text()
+          dark_anchor = "void Bot::CheckDarkness () {" + chr(10)
+          dark_patch = "void Bot::CheckDarkness () {" + chr(10) + "  if (game.Is (GameFlags::ZombieMod) && is_creature_) {" + chr(10) + "    if (pev->effects & EF_DIMLIGHT) {" + chr(10) + "      pev->impulse = 100;" + chr(10) + "    }" + chr(10) + "    return;" + chr(10) + "  }" + chr(10)
+          if dark_anchor not in vs:
+              raise SystemExit("ZP flashlight anchor not found")
+          vs = vs.replace(dark_anchor, dark_patch, 1)
+          vision.write_text(vs)
+
           # ZP graph analyzer: probe intermediate platform heights.
           analyze = Path("yapb/src/analyze.cpp")
           s = analyze.read_text()
