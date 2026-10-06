@@ -227,6 +227,15 @@ jobs:
           s = s.replace(react_old, react_new, 1)
           combat.write_text(s)
 
+          # ZP anti-pack behavior: do not broadcast one infected target to every
+          # creature teammate. Each infected must acquire its own enemy/navigation path.
+          share_old = "      // alert teammates watching this bot that have no enemy of their own" + chr(10) + "      for (auto &other : bots) {"
+          share_new = "      // alert teammates watching this bot that have no enemy of their own" + chr(10) + "      if (!(game.Is (GameFlags::ZombieMod) && is_creature_)) for (auto &other : bots) {"
+          if share_old not in s:
+              raise SystemExit("ZP teammate enemy-share anchor not found")
+          s = s.replace(share_old, share_new, 1)
+          combat.write_text(s)
+
           # ZP creatures never use flashlight. If one is already on, turn it off.
           vision = Path("yapb/src/vision.cpp")
           vs = vision.read_text()
