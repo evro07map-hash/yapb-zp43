@@ -241,69 +241,52 @@ jobs:
               raise SystemExit("Analyzer vertical probe anchor not found")
           s = s.replace(anchor, chr(10).join(probes) + chr(10) + anchor, 1)
           # Preserve and repair short vertical jump chains after analyzer optimization.
-          # This pass only creates links that YaPB's own jump-arc validator accepts.
+          # Keep the injected C++ as escaped Python strings so YAML remains valid.
           repair_anchor = "void GraphAnalyze::Cleanup () {"
-          repair_code = r"""
-void GraphAnalyze::ZpRepairVerticalJumpLinks () {
-  constexpr float kMaxHorizontal = 190.0f;
-  constexpr float kMaxRise = 128.0f;
-  constexpr float kMinRise = 18.0f;
-
-  int added = 0;
-
-  for (int from = 0; from < graph.Length (); ++from) {
-    if (!graph.Exists (from) || !HasFreeLinkSlot (from)) {
-      continue;
-    }
-
-    const auto candidates = graph.GetNearestInRadius (240.0f, graph[from].origin, 24);
-
-    for (const auto &to : candidates) {
-      if (!graph.Exists (to) || to == from || graph.IsConnected (from, to) || !HasFreeLinkSlot (from)) {
-        continue;
-      }
-
-      const auto delta = graph[to].origin - graph[from].origin;
-      const float rise = delta.z;
-      const float horizontal_sq = delta.x * delta.x + delta.y * delta.y;
-
-      if (rise < kMinRise || rise > kMaxRise || horizontal_sq > kMaxHorizontal * kMaxHorizontal) {
-        continue;
-      }
-
-      if (!graph.IsNodeReacheableWithJump (graph[from].origin, graph[to].origin)) {
-        continue;
-      }
-
-      graph.AddPath (from, to, graph[from].origin.distance (graph[to].origin));
-      graph.FlagJumpLink (from, to);
-      ++added;
-
-      // Jump takeoff nodes need exact footing on narrow steps/ledges.
-      graph[from].radius = 0.0f;
-    }
-  }
-
-  ctrl.Debug ("[ZP] vertical jump repair added %d validated links.", added);
-}
-
-"""
+          repair_lines = [
+              "void GraphAnalyze::ZpRepairVerticalJumpLinks () {",
+              "  constexpr float kMaxHorizontal = 190.0f;",
+              "  constexpr float kMaxRise = 128.0f;",
+              "  constexpr float kMinRise = 18.0f;",
+              "  int added = 0;",
+              "  for (int from = 0; from < graph.Length (); ++from) {",
+              "    if (!graph.Exists (from) || !HasFreeLinkSlot (from)) continue;",
+              "    const auto candidates = graph.GetNearestInRadius (240.0f, graph[from].origin, 24);",
+              "    for (const auto &to : candidates) {",
+              "      if (!graph.Exists (to) || to == from || graph.IsConnected (from, to) || !HasFreeLinkSlot (from)) continue;",
+              "      const auto delta = graph[to].origin - graph[from].origin;",
+              "      const float rise = delta.z;",
+              "      const float horizontal_sq = delta.x * delta.x + delta.y * delta.y;",
+              "      if (rise < kMinRise || rise > kMaxRise || horizontal_sq > kMaxHorizontal * kMaxHorizontal) continue;",
+              "      if (!graph.IsNodeReacheableWithJump (graph[from].origin, graph[to].origin)) continue;",
+              "      graph.AddPath (from, to, graph[from].origin.distance (graph[to].origin));",
+              "      graph.FlagJumpLink (from, to);",
+              "      graph[from].radius = 0.0f;",
+              "      ++added;",
+              "    }",
+              "  }",
+              "  ctrl.Debug (\\"[ZP] vertical jump repair added %d validated links.\\", added);",
+              "}",
+              "",
+          ]
+          repair_code = chr(10).join(repair_lines)
           if "ZpRepairVerticalJumpLinks" not in s:
               if repair_anchor not in s:
                   raise SystemExit("Analyzer cleanup anchor not found")
               s = s.replace(repair_anchor, repair_code + repair_anchor, 1)
 
-          # Run after optimizer/cleanup, before goals/camps and final save.
           call_anchor = '        LogGraphStats ("post-cleanup");'
-          call_code = '        LogGraphStats ("post-cleanup");' + chr(10) + '        ZpRepairVerticalJumpLinks ();' + chr(10) + '        LogGraphStats ("post-zp-vertical-repair");'
+          call_lines = [
+              '        LogGraphStats ("post-cleanup");',
+              "        ZpRepairVerticalJumpLinks ();",
+              '        LogGraphStats ("post-zp-vertical-repair");',
+          ]
           if "post-zp-vertical-repair" not in s:
               if call_anchor not in s:
                   raise SystemExit("Analyzer post-cleanup call anchor not found")
-              s = s.replace(call_anchor, call_code, 1)
-
+              s = s.replace(call_anchor, chr(10).join(call_lines), 1)
           analyze.write_text(s)
 
-          # Declare the ZP analyzer repair helper.
           analyze_h = Path("yapb/inc/analyze.h")
           hs = analyze_h.read_text()
           decl_anchor = "  void Cleanup ();"
