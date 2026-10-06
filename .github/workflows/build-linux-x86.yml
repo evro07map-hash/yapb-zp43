@@ -24,7 +24,7 @@ jobs:
 
       - name: Checkout YaPB dev with submodules
         run: |
-          git clone --depth 1 --branch dev --recurse-submodules https://github.com/yapb/yapb.git yapb
+          git clone --depth 1 --branch master --recurse-submodules https://github.com/yapb/yapb.git yapb
           cd yapb
           git submodule update --init --recursive
 
