@@ -193,6 +193,14 @@ jobs:
           if hunt_cancel_old not in s:
               raise SystemExit("ZP Hunt cancel anchor not found")
           s = s.replace(hunt_cancel_old, hunt_cancel_new, 1)
+          # Keep a ZP vertical Hunt committed to graph navigation. If the target becomes
+          # visible again while still on another floor, remember its live position but remove
+          # it as a direct combat enemy. This prevents Attack from stealing control back.
+          hunt_nav_anchor = "  else if (game.GetPlayerTeam (last_enemy_) == team_) {"
+          hunt_nav_patch = "  else if (zp_vertical_lock) {" + chr(10) + "    last_enemy_ = enemy_;" + chr(10) + "    last_enemy_origin_ = enemy_->v.origin;" + chr(10) + "    enemy_ = nullptr;" + chr(10) + "  }" + chr(10) + "  else if (game.GetPlayerTeam (last_enemy_) == team_) {"
+          if hunt_nav_anchor not in s:
+              raise SystemExit("ZP Hunt navigation-lock anchor not found")
+          s = s.replace(hunt_nav_anchor, hunt_nav_patch, 1)
           tasks.write_text(s)
 
           nav = Path("yapb/src/navigate.cpp")
