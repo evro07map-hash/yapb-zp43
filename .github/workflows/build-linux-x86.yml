@@ -285,7 +285,7 @@ jobs:
           ])
           attack_zp = chr(10).join([
               "  if (!game.IsNullEntity (enemy_)) {",
-              "    const float zp_height_delta = enemy_->v.origin.z - pev->origin.z;",
+              '    const float zp_height_delta = enemy_->v.origin.z - pev->origin.z;',
               "    if (game.Is (GameFlags::ZombieMod) && is_creature_ && zp_height_delta > 54.0f) {",
               "      aim_flags_ |= AimFlags::Nav;",
               "      check_terrain_ = true;",
