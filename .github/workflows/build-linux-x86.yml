@@ -106,6 +106,13 @@ jobs:
           if spread_old not in s:
               raise SystemExit("ZP FindRandomNode anchor not found")
           s = s.replace(spread_old, spread_new, 1)
+          # ZP route diversity: use YaPB's diversity heuristic for normal ZP navigation.
+          # This changes the actual A* route, not only the final destination node.
+          route_old = "  // pick the heuristic strategy for the requested path type" + chr(10) + "  if (path_type == FindPathType::Diversity) {"
+          route_new = "  // pick the heuristic strategy for the requested path type" + chr(10) + "  if (game.Is (GameFlags::ZombieMod) && path_type != FindPathType::Safe) {" + chr(10) + "    planner_->SetHeuristic (&plannerHeuristics::diversity);" + chr(10) + "  }" + chr(10) + "  else if (path_type == FindPathType::Diversity) {"
+          if route_old not in s:
+              raise SystemExit("ZP route diversity anchor not found")
+          s = s.replace(route_old, route_new, 1)
           nav.write_text(s)
 
           # Prefer ladders in Zombie Plague by removing the stock 50% ladder penalty.
@@ -288,6 +295,16 @@ jobs:
               raise SystemExit("ZP live team filter anchor not found")
           cs = cs.replace(team_filter_old, team_filter_new, 1)
           combat.write_text(cs)
+
+          # ZP Sniper/Survivor weapon handling: if AWP is granted by the mod, keep it selected.
+          weapons = Path("yapb/src/weapons.cpp")
+          ws = weapons.read_text()
+          weapon_anchor = "void Bot::SelectBestWeapon () {" + chr(10) + "  // choose the best owned weapon and switch to it"
+          weapon_patch = weapon_anchor + chr(10) + chr(10) + "  if (game.Is (GameFlags::ZombieMod) && has_flag (pev->weapons, ystl::bit (Weapon::AWP)) && GetAmmo (Weapon::AWP) > 0) {" + chr(10) + "    if (current_weapon_ != Weapon::AWP) {" + chr(10) + "      SelectWeaponById (Weapon::AWP);" + chr(10) + "    }" + chr(10) + "    reload_data_.Clear ();" + chr(10) + "    return;" + chr(10) + "  }"
+          if weapon_anchor not in ws:
+              raise SystemExit("ZP AWP priority anchor not found")
+          ws = ws.replace(weapon_anchor, weapon_patch, 1)
+          weapons.write_text(ws)
 
           # ZP graph analyzer: probe intermediate platform heights.
           analyze = Path("yapb/src/analyze.cpp")
