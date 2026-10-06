@@ -249,6 +249,16 @@ jobs:
           bs = bs.replace(role_anchor, role_patch, 1)
           behavior.write_text(bs)
 
+          # ZP live target validation: never keep shooting a player that changed to our current side.
+          combat = Path("yapb/src/combat.cpp")
+          cs = combat.read_text()
+          lookup_anchor = "  enemy_parts_ = Visibility::None;" + chr(10) + "  enemy_origin_.clear ();"
+          lookup_patch = lookup_anchor + chr(10) + chr(10) + "  if (game.Is (GameFlags::ZombieMod) && !game.IsNullEntity (enemy_) && game.IsPlayerEntity (enemy_)) {" + chr(10) + "    const bool enemy_is_creature = (enemy_->v.weapons & ystl::bit (Weapon::Knife)) && !(enemy_->v.weapons & ~ystl::bit (Weapon::Knife));" + chr(10) + "    if (enemy_is_creature == is_creature_) {" + chr(10) + "      enemy_ = nullptr;" + chr(10) + "      last_enemy_ = nullptr;" + chr(10) + "      enemy_body_part_set_ = nullptr;" + chr(10) + "      last_enemy_origin_.clear ();" + chr(10) + "      states_ &= ~(Sense::SeeingEnemy | Sense::SuspectEnemy);" + chr(10) + "      wants_to_fire_ = false;" + chr(10) + "      enemy_update_timer_.invalidate ();" + chr(10) + "    }" + chr(10) + "  }"
+          if lookup_anchor not in cs:
+              raise SystemExit("ZP live target validation anchor not found")
+          cs = cs.replace(lookup_anchor, lookup_patch, 1)
+          combat.write_text(cs)
+
           # ZP graph analyzer: probe intermediate platform heights.
           analyze = Path("yapb/src/analyze.cpp")
           s = analyze.read_text()
