@@ -271,65 +271,14 @@ jobs:
           s = s.replace(nearest_anchor, nearest_zp, 1)
           combat.write_text(s)
 
-          # ZP planner navigation for elevated targets and shelter movement.
+          # ZP planner navigation patch.
           tasks = Path("yapb/src/tasks.cpp")
           ts = tasks.read_text()
-          attack_anchor = chr(10).join([
-              "  if (!game.IsNullEntity (enemy_)) {",
-              "    AttackMovement ();",
-              "",
-              "    if (UsesKnife () && !enemy_origin_.empty ()) {",
-              "      dest_origin_ = enemy_origin_;",
-              "    }",
-              "  }",
-          ])
-          attack_zp = chr(10).join([
-              "  if (!game.IsNullEntity (enemy_)) {",
-              '    const float zp_height_delta = enemy_->v.origin.z - pev->origin.z;',
-              "    if (game.Is (GameFlags::ZombieMod) && is_creature_ && zp_height_delta > 54.0f) {",
-              "      aim_flags_ |= AimFlags::Nav;",
-              "      check_terrain_ = true;",
-              "      move_to_goal_ = true;",
-              "      EnsureCurrentNodeIndex ();",
-              "      const int enemy_node = graph.GetNearest (enemy_->v.origin);",
-              "      if (graph.Exists (enemy_node) && enemy_node != current_node_index_) {",
-              "        if (!HasActiveGoal () || prev_goal_index_ != enemy_node) {",
-              "          DeleteSearchNodes ();",
-              "          prev_goal_index_ = enemy_node;",
-              "          FindPath (current_node_index_, enemy_node, FindPathType::Fast);",
-              "        }",
-              "        UpdateNavigation ();",
-              "      }",
-              "      else { AttackMovement (); }",
-              "    }",
-              "    else { AttackMovement (); }",
-              "    if (UsesKnife () && !enemy_origin_.empty () && !(game.Is (GameFlags::ZombieMod) && is_creature_ && zp_height_delta > 54.0f)) {",
-              "      dest_origin_ = enemy_origin_;",
-              "    }",
-              "  }",
-          ])
+          attack_anchor = "  if (!game.IsNullEntity (enemy_)) {" + chr(10) + "    AttackMovement ();"
+          attack_zp = "  if (!game.IsNullEntity (enemy_)) {" + chr(10) + "    const float zp_height_delta = enemy_->v.origin.z - pev->origin.z;" + chr(10) + "    if (game.Is (GameFlags::ZombieMod) && is_creature_ && zp_height_delta > 54.0f) {" + chr(10) + "      aim_flags_ |= AimFlags::Nav;" + chr(10) + "      check_terrain_ = true;" + chr(10) + "      move_to_goal_ = true;" + chr(10) + "      EnsureCurrentNodeIndex ();" + chr(10) + "      const int enemy_node = graph.GetNearest (enemy_->v.origin);" + chr(10) + "      if (graph.Exists (enemy_node) && enemy_node != current_node_index_) {" + chr(10) + "        prev_goal_index_ = enemy_node;" + chr(10) + "        FindPath (current_node_index_, enemy_node, FindPathType::Fast);" + chr(10) + "        UpdateNavigation ();" + chr(10) + "        return;" + chr(10) + "      }" + chr(10) + "    }" + chr(10) + "    AttackMovement ();"
           if attack_anchor not in ts:
               raise SystemExit("ZP TaskAttack anchor not found")
           ts = ts.replace(attack_anchor, attack_zp, 1)
-
-          move_anchor = chr(10).join([
-              "void Bot::TaskMoveTo () {",
-              "  aim_flags_ |= AimFlags::Nav;",
-          ])
-          move_zp = chr(10).join([
-              "void Bot::TaskMoveTo () {",
-              "  aim_flags_ |= AimFlags::Nav;",
-              "  if (game.Is (GameFlags::ZombieMod) && !is_creature_) {",
-              "    check_terrain_ = true;",
-              "    move_to_goal_ = true;",
-              "    if (has_flag (path_flags_, NodeFlag::Crouch | NodeFlag::Narrow)) {",
-              "      pev->button |= IN_DUCK;",
-              "    }",
-              "  }",
-          ])
-          if move_anchor not in ts:
-              raise SystemExit("ZP TaskMoveTo anchor not found")
-          ts = ts.replace(move_anchor, move_zp, 1)
           tasks.write_text(ts)
 
           # ZP graph analyzer: probe intermediate platform heights.
