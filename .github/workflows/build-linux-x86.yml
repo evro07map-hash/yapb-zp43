@@ -271,8 +271,7 @@ jobs:
           s = s.replace(nearest_anchor, nearest_zp, 1)
           combat.write_text(s)
 
-          # ZP planner/navigation: visible creatures should route through the graph
-          # when their target is vertically separated instead of staring at it from below.
+          # ZP planner navigation for elevated targets and shelter movement.
           tasks = Path("yapb/src/tasks.cpp")
           ts = tasks.read_text()
           attack_anchor = """  if (!game.IsNullEntity (enemy_)) {
