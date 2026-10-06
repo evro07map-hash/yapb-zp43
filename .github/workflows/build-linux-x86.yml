@@ -201,6 +201,19 @@ jobs:
           if hunt_nav_anchor not in s:
               raise SystemExit("ZP Hunt navigation-lock anchor not found")
           s = s.replace(hunt_nav_anchor, hunt_nav_patch, 1)
+          # ZP pursuit v1: while a creature is vertically separated from its target,
+          # keep the Hunt destination on the current graph route instead of continuously
+          # replacing it with a node directly beside/under the moving human.
+          hunt_goal_anchor = "  else if (!HasActiveGoal ()) {" + chr(10) + "    int dest_index = kInvalidNodeIndex;" + chr(10) + "    const int goal = Task ()->data;"
+          hunt_goal_patch = "  else if (!HasActiveGoal ()) {" + chr(10) + "    int dest_index = kInvalidNodeIndex;" + chr(10) + "    const bool zp_vertical_route = game.Is (GameFlags::ZombieMod) && is_creature_ &&" + chr(10) + "      game.IsPlayerEntity (last_enemy_) && game.IsAliveEntity (last_enemy_) &&" + chr(10) + "      ystl::abs (last_enemy_->v.origin.z - pev->origin.z) >= 48.0f;" + chr(10) + "    const int goal = Task ()->data;"
+          if hunt_goal_anchor not in s:
+              raise SystemExit("ZP Hunt goal anchor not found")
+          s = s.replace(hunt_goal_anchor, hunt_goal_patch, 1)
+          hunt_nearest_old = "    else {" + chr(10) + "      dest_index = graph.GetNearest (last_enemy_origin_);" + chr(10) + "    }" + chr(10) + chr(10) + "    // remember index"
+          hunt_nearest_new = "    else {" + chr(10) + "      dest_index = graph.GetNearest (last_enemy_origin_);" + chr(10) + "      if (zp_vertical_route && graph.Exists (prev_goal_index_)) {" + chr(10) + "        dest_index = prev_goal_index_;" + chr(10) + "      }" + chr(10) + "    }" + chr(10) + chr(10) + "    // remember index"
+          if hunt_nearest_old not in s:
+              raise SystemExit("ZP Hunt nearest anchor not found")
+          s = s.replace(hunt_nearest_old, hunt_nearest_new, 1)
           tasks.write_text(s)
 
           nav = Path("yapb/src/navigate.cpp")
