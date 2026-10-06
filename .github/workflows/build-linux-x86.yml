@@ -219,68 +219,6 @@ jobs:
               print("Close-range creature strafe block differs; direct-charge block still applied.")
           combat.write_text(s)
 
-          # ZP AI: creatures (Zombie/Nemesis/Assassin) must never select
-          # another creature as an enemy. In ZP, weaponless/knife players
-          # are treated as infected creatures; armed players are human-side
-          # targets (Human/Survivor/Sniper).
-          combat = Path("yapb/src/combat.cpp")
-          s = combat.read_text()
-          enemy_loop = """    for (const auto &client : clients) {
-      if (!client.IsUsedAndAlive () || client.IsSameTeam (team_)) {
-        continue;
-      }
-      player = client.ent;
-"""
-          enemy_loop_zp = """    for (const auto &client : clients) {
-      if (!client.IsUsedAndAlive () || client.IsSameTeam (team_)) {
-        continue;
-      }
-      player = client.ent;
-
-      // ZP creature focus: never acquire another infected/creature.
-      // Zombie Plague humans (including Survivor/Sniper) carry firearms,
-      // while Zombie/Nemesis/Assassin are melee/weaponless.
-      if (game.Is (GameFlags::ZombieMod) && is_creature_) {
-        const bool target_has_firearm =
-          has_flag (player->v.weapons, kPrimaryWeaponMask) || has_flag (player->v.weapons, kSecondaryWeaponMask);
-
-        if (!target_has_firearm) {
-          continue;
-        }
-      }
-"""
-          if enemy_loop not in s:
-              raise SystemExit("ZP enemy-selection loop anchor not found")
-          s = s.replace(enemy_loop, enemy_loop_zp, 1)
-
-          # Keep the current human target sticky for creatures. Do not switch
-          # to a merely closer player every enemy scan.
-          nearest_anchor = """      const float distance_sq = player->v.origin.distance_sq (pev->origin);
-
-      // extra skill player can see attacking enemies at extended range"""
-          nearest_zp = """      float distance_sq = player->v.origin.distance_sq (pev->origin);
-
-      // Strong focus on the already selected Human/Survivor/Sniper.
-      if (game.Is (GameFlags::ZombieMod) && is_creature_ && player == enemy_) {
-        distance_sq *= 0.20f;
-      }
-
-      // extra skill player can see attacking enemies at extended range"""
-          if nearest_anchor not in s:
-              raise SystemExit("ZP enemy distance anchor not found")
-          s = s.replace(nearest_anchor, nearest_zp, 1)
-          combat.write_text(s)
-
-          # ZP planner navigation patch.
-          tasks = Path("yapb/src/tasks.cpp")
-          ts = tasks.read_text()
-          attack_anchor = "  if (!game.IsNullEntity (enemy_)) {" + chr(10) + "    AttackMovement ();"
-          attack_zp = "  if (!game.IsNullEntity (enemy_)) {" + chr(10) + "    const float zp_height_delta = enemy_->v.origin.z - pev->origin.z;" + chr(10) + "    if (game.Is (GameFlags::ZombieMod) && is_creature_ && zp_height_delta > 54.0f) {" + chr(10) + "      aim_flags_ |= AimFlags::Nav;" + chr(10) + "      check_terrain_ = true;" + chr(10) + "      move_to_goal_ = true;" + chr(10) + "      EnsureCurrentNodeIndex ();" + chr(10) + "      const int enemy_node = graph.GetNearest (enemy_->v.origin);" + chr(10) + "      if (graph.Exists (enemy_node) && enemy_node != current_node_index_) {" + chr(10) + "        prev_goal_index_ = enemy_node;" + chr(10) + "        FindPath (current_node_index_, enemy_node, FindPathType::Fast);" + chr(10) + "        UpdateNavigation ();" + chr(10) + "        return;" + chr(10) + "      }" + chr(10) + "    }" + chr(10) + "    AttackMovement ();"
-          if attack_anchor not in ts:
-              raise SystemExit("ZP TaskAttack anchor not found")
-          ts = ts.replace(attack_anchor, attack_zp, 1)
-          tasks.write_text(ts)
-
           # ZP graph analyzer: probe intermediate platform heights.
           analyze = Path("yapb/src/analyze.cpp")
           s = analyze.read_text()
