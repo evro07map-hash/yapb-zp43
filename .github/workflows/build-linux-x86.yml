@@ -106,6 +106,15 @@ jobs:
           if spread_old not in s:
               raise SystemExit("ZP FindRandomNode anchor not found")
           s = s.replace(spread_old, spread_new, 1)
+
+          # ZP branch spreading: when a roaming goal is chosen, bias it toward a different
+          # first graph branch than nearby bots. Keep the stock A* planner unchanged.
+          branch_anchor = "    if (game.Is (GameFlags::ZombieMod)) {" + chr(10) + "      bool reserved = false;"
+          branch_patch = "    if (game.Is (GameFlags::ZombieMod)) {" + chr(10) + "      bool reserved = false;" + chr(10) + "      const int self_node = graph.GetNearestNoBuckets (pev->origin, 512.0f);" + chr(10) + "      if (graph.Exists (self_node) && graph[self_node].origin.distance_sq (graph[candidate].origin) < ystl::sqrf (640.0f)) {" + chr(10) + "        reserved = true;" + chr(10) + "      }"
+          if branch_anchor not in s:
+              raise SystemExit("ZP branch spread anchor not found")
+          s = s.replace(branch_anchor, branch_patch, 1)
+          nav.write_text(s)
           # Prefer ladders in Zombie Plague by removing the stock 50% ladder penalty.
           planner = Path("yapb/src/planner.cpp")
           s = planner.read_text()
