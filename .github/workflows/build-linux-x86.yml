@@ -99,6 +99,13 @@ jobs:
           '''
           if "ZP humans first look" not in s:
               s = s.replace(marker, marker + "\n" + zp, 1)
+          # ZP goal spreading: avoid destinations already chosen by another live bot.
+          # This prevents the whole pack selecting one identical camp/roam node.
+          spread_old = "int Bot::FindRandomNode (PointType type) {" + chr(10) + "  int picked = kInvalidNodeIndex;" + chr(10) + chr(10) + "  for (int tries = 0; tries < 8; ++tries) {" + chr(10) + "    const int candidate = (type == PointType::Count) ? graph.Random () : graph.GetRandomPoint (type);" + chr(10) + chr(10) + "    if (!graph.Exists (candidate)) {" + chr(10) + "      continue;" + chr(10) + "    }" + chr(10) + "    picked = candidate;" + chr(10) + chr(10) + "    if (!mode_walls.IsNodeBlocked (graph[candidate].origin)) {" + chr(10) + "      break;" + chr(10) + "    }" + chr(10) + "  }" + chr(10) + "  return picked;" + chr(10) + "}"
+          spread_new = "int Bot::FindRandomNode (PointType type) {" + chr(10) + "  int picked = kInvalidNodeIndex;" + chr(10) + chr(10) + "  for (int tries = 0; tries < (game.Is (GameFlags::ZombieMod) ? 24 : 8); ++tries) {" + chr(10) + "    const int candidate = (type == PointType::Count) ? graph.Random () : graph.GetRandomPoint (type);" + chr(10) + chr(10) + "    if (!graph.Exists (candidate)) {" + chr(10) + "      continue;" + chr(10) + "    }" + chr(10) + "    picked = candidate;" + chr(10) + chr(10) + "    if (mode_walls.IsNodeBlocked (graph[candidate].origin)) {" + chr(10) + "      continue;" + chr(10) + "    }" + chr(10) + chr(10) + "    if (game.Is (GameFlags::ZombieMod)) {" + chr(10) + "      bool reserved = false;" + chr(10) + "      for (auto &other : bots) {" + chr(10) + "        if (&other == this || !other.is_alive_) {" + chr(10) + "          continue;" + chr(10) + "        }" + chr(10) + "        const int other_goal = other.Task ()->data;" + chr(10) + "        if (other_goal == candidate || (graph.Exists (other_goal) && graph[other_goal].origin.distance_sq (graph[candidate].origin) < ystl::sqrf (384.0f))) {" + chr(10) + "          reserved = true;" + chr(10) + "          break;" + chr(10) + "        }" + chr(10) + "      }" + chr(10) + "      if (reserved) {" + chr(10) + "        continue;" + chr(10) + "      }" + chr(10) + "    }" + chr(10) + "    break;" + chr(10) + "  }" + chr(10) + "  return picked;" + chr(10) + "}"
+          if spread_old not in s:
+              raise SystemExit("ZP FindRandomNode anchor not found")
+          s = s.replace(spread_old, spread_new, 1)
           nav.write_text(s)
 
           # Prefer ladders in Zombie Plague by removing the stock 50% ladder penalty.
