@@ -229,6 +229,16 @@ jobs:
           vs = vs.replace(dark_anchor, dark_patch, 1)
           vision.write_text(vs)
 
+          # Hard block flashlight impulse at the final RunPlayerMove boundary.
+          manager = Path("yapb/src/manager.cpp")
+          ms = manager.read_text()
+          impulse_anchor = "  const auto input_impulse = static_cast<uint8_t> (bot->pev->impulse);"
+          impulse_patch = "  const auto input_impulse = static_cast<uint8_t> ((game.Is (GameFlags::ZombieMod) && bot->is_creature_) ? 0 : bot->pev->impulse);"
+          if impulse_anchor not in ms:
+              raise SystemExit("ZP final impulse anchor not found")
+          ms = ms.replace(impulse_anchor, impulse_patch, 1)
+          manager.write_text(ms)
+
           # ZP graph analyzer: probe intermediate platform heights.
           analyze = Path("yapb/src/analyze.cpp")
           s = analyze.read_text()
