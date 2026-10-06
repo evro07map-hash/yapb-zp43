@@ -180,6 +180,13 @@ jobs:
               if start < 0 or stop < 0:
                   raise SystemExit("TaskHunt navigation section not found")
               s = s[:start] + new + s[stop:]
+          # ZP vertical chase: a creature must not stay in Attack while the target is
+          # on another floor. Convert that situation to Hunt so graph ladders/ramps/jumps are used.
+          attack_anchor = "void Bot::TaskAttack () {" + chr(10) + "  move_to_goal_ = false;"
+          attack_patch = "void Bot::TaskAttack () {" + chr(10) + "  if (game.Is (GameFlags::ZombieMod) && is_creature_ && !game.IsNullEntity (enemy_) &&" + chr(10) + "      ystl::abs (enemy_->v.origin.z - pev->origin.z) >= 48.0f) {" + chr(10) + "    last_enemy_ = enemy_;" + chr(10) + "    last_enemy_origin_ = enemy_->v.origin;" + chr(10) + "    enemy_ = nullptr;" + chr(10) + "    ClearTask (TaskId::Attack);" + chr(10) + "    StartTask (TaskId::Hunt, TaskPri::kHunt, kInvalidNodeIndex, 0.0f, true);" + chr(10) + "    prev_goal_index_ = kInvalidNodeIndex;" + chr(10) + "    ClearSearchNodes ();" + chr(10) + "    return;" + chr(10) + "  }" + chr(10) + chr(10) + "  move_to_goal_ = false;"
+          if attack_anchor not in s:
+              raise SystemExit("ZP vertical TaskAttack anchor not found")
+          s = s.replace(attack_anchor, attack_patch, 1)
           tasks.write_text(s)
 
           nav = Path("yapb/src/navigate.cpp")
