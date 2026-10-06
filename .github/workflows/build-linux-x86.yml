@@ -295,7 +295,7 @@ void GraphAnalyze::ZpRepairVerticalJumpLinks () {
 
           # Run after optimizer/cleanup, before goals/camps and final save.
           call_anchor = '        LogGraphStats ("post-cleanup");'
-          call_code = '        LogGraphStats ("post-cleanup");\n        ZpRepairVerticalJumpLinks ();\n        LogGraphStats ("post-zp-vertical-repair");'
+          call_code = '        LogGraphStats ("post-cleanup");' + chr(10) + '        ZpRepairVerticalJumpLinks ();' + chr(10) + '        LogGraphStats ("post-zp-vertical-repair");'
           if "post-zp-vertical-repair" not in s:
               if call_anchor not in s:
                   raise SystemExit("Analyzer post-cleanup call anchor not found")
@@ -310,7 +310,7 @@ void GraphAnalyze::ZpRepairVerticalJumpLinks () {
           if "ZpRepairVerticalJumpLinks" not in hs:
               if decl_anchor not in hs:
                   raise SystemExit("Analyzer header cleanup declaration not found")
-              hs = hs.replace(decl_anchor, decl_anchor + "\n  void ZpRepairVerticalJumpLinks ();", 1)
+              hs = hs.replace(decl_anchor, decl_anchor + chr(10) + "  void ZpRepairVerticalJumpLinks ();", 1)
           analyze_h.write_text(hs)
 
       - name: Configure legacy Linux x86 with Zig
