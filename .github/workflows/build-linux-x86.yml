@@ -305,7 +305,7 @@ jobs:
           manager = Path("yapb/src/manager.cpp")
           ms = manager.read_text()
           impulse_anchor = "  const auto input_impulse = static_cast<uint8_t> (bot->pev->impulse);"
-          impulse_patch = "  const auto input_impulse = static_cast<uint8_t> ((game.Is (GameFlags::ZombieMod) && bot->is_creature_) ? 0 : bot->pev->impulse);"
+          impulse_patch = "  const auto input_impulse = static_cast<uint8_t> ((game.Is (GameFlags::ZombieMod) && bot->is_creature_) ? ((bot->pev->effects & EF_DIMLIGHT) ? 100 : 0) : bot->pev->impulse);"
           if impulse_anchor not in ms:
               raise SystemExit("ZP final impulse anchor not found")
           ms = ms.replace(impulse_anchor, impulse_patch, 1)
