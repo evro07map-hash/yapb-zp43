@@ -84,6 +84,13 @@ jobs:
             }'''
           if "Zombie Plague population schedule" not in s:
               s = s.replace(marker, marker + zp, 1)
+          # ZP startup fix: stock YaPB autokill sees no alive human during the mod's
+          # initial role setup and kills every living bot. ZP manages round deaths itself.
+          autokill_anchor = "void Manager::MaintainAutoKill () {" + chr(10) + "  const float kill_delay = cv_autokill_delay.As<float> ();"
+          autokill_patch = "void Manager::MaintainAutoKill () {" + chr(10) + "  if (game.Is (GameFlags::ZombieMod)) {" + chr(10) + "    auto_kill_timer_.invalidate ();" + chr(10) + "    return;" + chr(10) + "  }" + chr(10) + chr(10) + "  const float kill_delay = cv_autokill_delay.As<float> ();"
+          if autokill_anchor not in s:
+              raise SystemExit("ZP autokill anchor not found")
+          s = s.replace(autokill_anchor, autokill_patch, 1)
           manager.write_text(s)
 
           nav = Path("yapb/src/navigate.cpp")
