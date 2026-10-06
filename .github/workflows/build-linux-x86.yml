@@ -271,6 +271,79 @@ jobs:
           s = s.replace(nearest_anchor, nearest_zp, 1)
           combat.write_text(s)
 
+          # ZP planner/navigation: visible creatures should route through the graph
+          # when their target is vertically separated instead of staring at it from below.
+          tasks = Path("yapb/src/tasks.cpp")
+          ts = tasks.read_text()
+          attack_anchor = """  if (!game.IsNullEntity (enemy_)) {
+    AttackMovement ();
+
+    if (UsesKnife () && !enemy_origin_.empty ()) {
+      dest_origin_ = enemy_origin_;
+    }
+  }
+"""
+          attack_zp = """  if (!game.IsNullEntity (enemy_)) {
+    // ZP creature vertical pursuit: direct attack movement is useful on the
+    // same level, but against an elevated target it makes the bot stop below
+    // the target. Route to the target's graph node so jump/ladder/tunnel
+    // links can be used.
+    const float zp_height_delta = enemy_->v.origin.z - pev->origin.z;
+    if (game.Is (GameFlags::ZombieMod) && is_creature_ && zp_height_delta > 54.0f) {
+      aim_flags_ |= AimFlags::Nav;
+      check_terrain_ = true;
+      move_to_goal_ = true;
+
+      EnsureCurrentNodeIndex ();
+      const int enemy_node = graph.GetNearest (enemy_->v.origin);
+
+      if (graph.Exists (enemy_node) && enemy_node != current_node_index_) {
+        if (!HasActiveGoal () || prev_goal_index_ != enemy_node) {
+          DeleteSearchNodes ();
+          prev_goal_index_ = enemy_node;
+          FindPath (current_node_index_, enemy_node, FindPathType::Fast);
+        }
+        UpdateNavigation ();
+      }
+      else {
+        AttackMovement ();
+      }
+    }
+    else {
+      AttackMovement ();
+    }
+
+    if (UsesKnife () && !enemy_origin_.empty () && !(game.Is (GameFlags::ZombieMod) && is_creature_ && zp_height_delta > 54.0f)) {
+      dest_origin_ = enemy_origin_;
+    }
+  }
+"""
+          if attack_anchor not in ts:
+              raise SystemExit("ZP TaskAttack anchor not found")
+          ts = ts.replace(attack_anchor, attack_zp, 1)
+
+          # Humans in ZP should keep terrain/navigation enabled while moving
+          # through narrow/crouch graph sections such as shelter tunnels.
+          move_anchor = """void Bot::TaskMoveTo () {
+  aim_flags_ |= AimFlags::Nav;
+"""
+          move_zp = """void Bot::TaskMoveTo () {
+  aim_flags_ |= AimFlags::Nav;
+
+  if (game.Is (GameFlags::ZombieMod) && !is_creature_) {
+    check_terrain_ = true;
+    move_to_goal_ = true;
+
+    if (has_flag (path_flags_, NodeFlag::Crouch | NodeFlag::Narrow)) {
+      pev->button |= IN_DUCK;
+    }
+  }
+"""
+          if move_anchor not in ts:
+              raise SystemExit("ZP TaskMoveTo anchor not found")
+          ts = ts.replace(move_anchor, move_zp, 1)
+          tasks.write_text(ts)
+
           # ZP graph analyzer: probe intermediate platform heights.
           analyze = Path("yapb/src/analyze.cpp")
           s = analyze.read_text()
