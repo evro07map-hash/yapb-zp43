@@ -242,7 +242,7 @@ jobs:
           s = s.replace(marker, extra + "\\n" + marker, 1)
           analyze.write_text(s)
 
-      - name: Configure legacy Linux x86 with Zig
+      - name: ZP analyzer patch ready\n        run: echo \"ZP vertical graph analyzer enabled\"\n\n      - name: Configure legacy Linux x86 with Zig
         run: |
           cmake --preset ci-linux-x86 -S yapb
 
